@@ -1,0 +1,61 @@
+﻿@page "/"
+@using Microsoft.AspNetCore.SignalR.Client
+@inject NavigationManager NavigationManager
+@implements IDisposable
+
+<div class="container">
+    <div class="form-group">
+        <label>Usuario:</label>
+        <input @bind="userInput" />
+    </div>
+    <div class="form-group">
+        <lave>Mensaje:</lave>
+        <input @bind="messageInput" size="40" />
+    </div>
+
+    <div class="row">
+        <button @onclick="Send" disabled="@(!IsConnected)" class="btn-primary">Enviar</button>
+    </div>
+    <hr />
+    <div class="row">
+        <ul>
+            @foreach (var message in Messages)
+            {
+                <li>@message</li>
+            }
+        </ul>
+    </div>
+
+    @code
+    {
+        private HubConnection hubConnection;
+        private List<string> Messages = new List<string>();
+        private string userInput;
+        private string messageInput;
+
+        protected override async Task OnInitializedAsync()
+        {
+            hubConnection = new HubConnectionBuilder()
+                .WithUrl(NavigationManager.ToAbsoluteUri("/chathub"))
+                .Build();
+
+            hubConnection.On<string, string>("ReceiveMessage", (user, message) =>
+            {
+                var encodemessage = $"{user}: {message}";
+                Messages.Add(encodemessage);
+                StateHasChanged();
+            });
+
+            await hubConnection.StartAsync();
+        }
+
+        Task Send() => hubConnection.SendAsync("SendMessage", userInput, messageInput);
+
+        public bool IsConnected => hubConnection.State == HubConnectionState.Connected;
+
+        public void Dispose()
+        {
+            _ = hubConnection.DisposeAsync();
+        }
+}
+</div>
